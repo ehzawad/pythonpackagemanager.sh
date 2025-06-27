@@ -1,6 +1,3 @@
-# Python Version Manager for macOS/zsh
-# Add this to your ~/.zshrc
-
 # Global variables
 typeset -ga _PYTHON_VERSIONS
 typeset -gA _PYTHON_PATHS
@@ -112,9 +109,32 @@ _scan_all_pythons() {
     _PYTHON_VERSIONS=(${(nou)_PYTHON_VERSIONS})
 }
 
+# Check if we're in a virtual environment
+_in_virtual_env() {
+    # Check for venv/virtualenv
+    [[ -n "$VIRTUAL_ENV" ]] && return 0
+    
+    # Check for conda
+    [[ -n "$CONDA_DEFAULT_ENV" ]] && return 0
+    
+    # Check for poetry
+    [[ -n "$POETRY_ACTIVE" ]] && return 0
+    
+    # Check for pipenv
+    [[ -n "$PIPENV_ACTIVE" ]] && return 0
+    
+    return 1
+}
+
 # Python wrapper
 python() {
-    # Rescan for latest pythons
+    # If in virtual environment, use the venv's python
+    if _in_virtual_env; then
+        command python "$@"
+        return $?
+    fi
+    
+    # Otherwise, show our custom message
     _scan_all_pythons
     
     echo "❌ No default 'python' command available"
@@ -123,7 +143,7 @@ python() {
     if (( ${#_PYTHON_VERSIONS} == 0 )); then
         echo "⚠️  No Python 3.x installations found!"
         echo ""
-        echo "💡 Install Python to ~/.local/bin or use Homebrew"
+        echo "💡 Install Python to ~/.local/bin"
         return 1
     fi
     
@@ -143,7 +163,13 @@ python() {
 
 # Python3 wrapper
 python3() {
-    # Rescan for latest pythons
+    # If in virtual environment, use the venv's python3
+    if _in_virtual_env; then
+        command python3 "$@"
+        return $?
+    fi
+    
+    # Otherwise, show our custom message
     _scan_all_pythons
     
     echo "❌ No default 'python3' command available"
@@ -172,6 +198,13 @@ python3() {
 
 # Pip wrapper
 pip() {
+    # If in virtual environment, use the venv's pip
+    if _in_virtual_env; then
+        command pip "$@"
+        return $?
+    fi
+    
+    # Otherwise, show our custom message
     _scan_all_pythons
     
     echo "❌ No default 'pip' command available"
@@ -193,7 +226,17 @@ pip() {
     return 1
 }
 
-pip3() { pip "$@" }
+# Pip3 wrapper
+pip3() {
+    # If in virtual environment, use the venv's pip3
+    if _in_virtual_env; then
+        command pip3 "$@"
+        return $?
+    fi
+    
+    # Otherwise, delegate to pip function
+    pip "$@"
+}
 
 # Initial scan and create aliases
 _scan_all_pythons
@@ -209,6 +252,32 @@ done
 pyinfo() {
     echo "🔍 Python Discovery Debug Info:"
     echo ""
+    
+    # Check virtual environment status first
+    if _in_virtual_env; then
+        echo "🌟 Virtual Environment Active!"
+        echo ""
+        if [[ -n "$VIRTUAL_ENV" ]]; then
+            echo "  Type: venv/virtualenv"
+            echo "  Path: $VIRTUAL_ENV"
+        elif [[ -n "$CONDA_DEFAULT_ENV" ]]; then
+            echo "  Type: conda"
+            echo "  Name: $CONDA_DEFAULT_ENV"
+        elif [[ -n "$POETRY_ACTIVE" ]]; then
+            echo "  Type: poetry"
+        elif [[ -n "$PIPENV_ACTIVE" ]]; then
+            echo "  Type: pipenv"
+        fi
+        echo ""
+        echo "  python  → $(command -v python 2>/dev/null || echo 'not found')"
+        echo "  python3 → $(command -v python3 2>/dev/null || echo 'not found')"
+        echo "  pip     → $(command -v pip 2>/dev/null || echo 'not found')"
+        echo "  pip3    → $(command -v pip3 2>/dev/null || echo 'not found')"
+        echo ""
+        echo "────────────────────────────────"
+        echo ""
+    fi
+    
     _scan_all_pythons
     
     if (( ${#_PYTHON_VERSIONS} == 0 )); then
