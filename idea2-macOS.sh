@@ -183,6 +183,43 @@ python() {
     
     # Priority 2: Temporary override
     if [[ -n "$_PYTHON_OVERRIDE" ]]; then
+        # Check if trying to use pip module
+        if [[ "$#" -ge 2 ]] && [[ "$1" == "-m" ]] && [[ "$2" == "pip" ]]; then
+            echo "❌ python -m pip is blocked outside virtual environments"
+            echo ""
+            echo "💡 To use pip:"
+            echo "   1. Create a virtual environment: python${_PYTHON_OVERRIDE} -m venv [venv-projname]"
+            echo "   2. Activate it: source [venv-projname]/bin/activate"
+            echo "   3. Then use pip normally"
+            echo ""
+            echo "🛡️  This prevents accidental system-wide package installations"
+            echo "ℹ️  Note: Temporary Python override does NOT affect pip"
+            return 1
+        fi
+        
+        _scan_all_pythons
+        if [[ -n "${_PYTHON_PATHS[$_PYTHON_OVERRIDE]}" ]]; then
+            "${_PYTHON_PATHS[$_PYTHON_OVERRIDE]}" "$@"
+            return $?
+        fi
+    fi
+    
+    # Priority 3: System fallback (if explicitly allowed AND override is set)
+    if [[ -n "$PYTHON_ALLOW_SYSTEM" ]] && [[ -n "$_PYTHON_OVERRIDE" ]]; then
+        # Still block pip even with system fallback
+        if [[ "$#" -ge 2 ]] && [[ "$1" == "-m" ]] && [[ "$2" == "pip" ]]; then
+            echo "❌ python -m pip is blocked outside virtual environments"
+            echo ""
+            echo "💡 To use pip:"
+            echo "   1. Create a virtual environment and activate it"
+            echo "   2. Then use pip normally"
+            echo ""
+            echo "🛡️  This prevents accidental system-wide package installations"
+            echo "ℹ️  Note: PYTHON_ALLOW_SYSTEM does NOT affect pip"
+            return 1
+        fi
+        
+        # Use the setpy override for build tools
         _scan_all_pythons
         if [[ -n "${_PYTHON_PATHS[$_PYTHON_OVERRIDE]}" ]]; then
             "${_PYTHON_PATHS[$_PYTHON_OVERRIDE]}" "$@"
@@ -213,6 +250,7 @@ python() {
     echo "💡 Options:"
     echo "   1. Create venv: python${sorted_versions[1]} -m venv [venv-projname] && source [venv-projname]/bin/activate"
     echo "   2. Set temporary default: setpy ${sorted_versions[1]}"
+    echo "   3. For build tools: setpy <version> && PYTHON_ALLOW_SYSTEM=1 your-build-command"
     
     return 1
 }
@@ -231,6 +269,43 @@ python3() {
     
     # Priority 2: Temporary override
     if [[ -n "$_PYTHON_OVERRIDE" ]]; then
+        # Check if trying to use pip module
+        if [[ "$#" -ge 2 ]] && [[ "$1" == "-m" ]] && [[ "$2" == "pip" ]]; then
+            echo "❌ python3 -m pip is blocked outside virtual environments"
+            echo ""
+            echo "💡 To use pip:"
+            echo "   1. Create a virtual environment: python${_PYTHON_OVERRIDE} -m venv [venv-projname]"
+            echo "   2. Activate it: source [venv-projname]/bin/activate"
+            echo "   3. Then use pip normally"
+            echo ""
+            echo "🛡️  This prevents accidental system-wide package installations"
+            echo "ℹ️  Note: Temporary Python override does NOT affect pip"
+            return 1
+        fi
+        
+        _scan_all_pythons
+        if [[ -n "${_PYTHON_PATHS[$_PYTHON_OVERRIDE]}" ]]; then
+            "${_PYTHON_PATHS[$_PYTHON_OVERRIDE]}" "$@"
+            return $?
+        fi
+    fi
+    
+    # Priority 3: System fallback (if explicitly allowed AND override is set)
+    if [[ -n "$PYTHON_ALLOW_SYSTEM" ]] && [[ -n "$_PYTHON_OVERRIDE" ]]; then
+        # Still block pip even with system fallback
+        if [[ "$#" -ge 2 ]] && [[ "$1" == "-m" ]] && [[ "$2" == "pip" ]]; then
+            echo "❌ python3 -m pip is blocked outside virtual environments"
+            echo ""
+            echo "💡 To use pip:"
+            echo "   1. Create a virtual environment and activate it"
+            echo "   2. Then use pip normally"
+            echo ""
+            echo "🛡️  This prevents accidental system-wide package installations"
+            echo "ℹ️  Note: PYTHON_ALLOW_SYSTEM does NOT affect pip"
+            return 1
+        fi
+        
+        # Use the setpy override for build tools
         _scan_all_pythons
         if [[ -n "${_PYTHON_PATHS[$_PYTHON_OVERRIDE]}" ]]; then
             "${_PYTHON_PATHS[$_PYTHON_OVERRIDE]}" "$@"
@@ -261,6 +336,7 @@ python3() {
     echo "💡 Options:"
     echo "   1. Create venv: python${sorted_versions[1]} -m venv [venv-projname] && source [venv-projname]/bin/activate"
     echo "   2. Set temporary default: setpy ${sorted_versions[1]}"
+    echo "   3. For build tools: setpy <version> && PYTHON_ALLOW_SYSTEM=1 your-build-command"
     
     return 1
 }
