@@ -211,7 +211,7 @@ python() {
     
     echo ""
     echo "💡 Options:"
-    echo "   1. Create venv: python${sorted_versions[1]} -m venv myenv && source myenv/bin/activate"
+    echo "   1. Create venv: python${sorted_versions[1]} -m venv [venv-projname] && source [venv-projname]/bin/activate"
     echo "   2. Set temporary default: setpy ${sorted_versions[1]}"
     
     return 1
@@ -259,7 +259,7 @@ python3() {
     
     echo ""
     echo "💡 Options:"
-    echo "   1. Create venv: python${sorted_versions[1]} -m venv myenv && source myenv/bin/activate"
+    echo "   1. Create venv: python${sorted_versions[1]} -m venv [venv-projname] && source [venv-projname]/bin/activate"
     echo "   2. Set temporary default: setpy ${sorted_versions[1]}"
     
     return 1
@@ -279,8 +279,8 @@ pip() {
     echo "❌ pip is not available outside virtual environments"
     echo ""
     echo "💡 To use pip:"
-    echo "   1. Create a virtual environment: python3.x -m venv myenv"
-    echo "   2. Activate it: source myenv/bin/activate"
+    echo "   1. Create a virtual environment: python3.x -m venv [venv-projname]"
+    echo "   2. Activate it: source [venv-projname]/bin/activate"
     echo "   3. Then use pip normally"
     echo ""
     echo "🛡️  This prevents accidental system-wide package installations"
@@ -399,8 +399,8 @@ _python_version_wrapper() {
         echo "❌ python${version} -m pip is blocked outside virtual environments"
         echo ""
         echo "💡 To use pip:"
-        echo "   1. Create a virtual environment: python${version} -m venv myenv"
-        echo "   2. Activate it: source myenv/bin/activate"
+        echo "   1. Create a virtual environment: python${version} -m venv [venv-projname]"
+        echo "   2. Activate it: source [venv-projname]/bin/activate"
         echo "   3. Then use pip normally"
         echo ""
         echo "🛡️  This prevents accidental system-wide package installations"
@@ -460,8 +460,8 @@ _pip_version_wrapper() {
     echo "❌ pip${version} is not available outside virtual environments"
     echo ""
     echo "💡 To use pip:"
-    echo "   1. Create a virtual environment: python${version} -m venv myenv"
-    echo "   2. Activate it: source myenv/bin/activate"
+    echo "   1. Create a virtual environment: python${version} -m venv [venv-projname]"
+    echo "   2. Activate it: source [venv-projname]/bin/activate"
     echo "   3. Then use pip normally"
     echo ""
     echo "🛡️  This prevents accidental system-wide package installations"
