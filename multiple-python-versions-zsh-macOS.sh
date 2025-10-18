@@ -1,3 +1,5 @@
+
+# Python Version Manager by ehzawad@gmail.com
 # Global variables
 typeset -ga _PYTHON_VERSIONS
 typeset -gA _PYTHON_PATHS
@@ -36,12 +38,14 @@ _scan_all_pythons() {
         # Custom installations
         "/opt/python*/bin"
         "$HOME/opt/python*/bin"
+        "$HOME/opt/python/*/bin"      # For structure like ~/opt/python/3.12.12/bin
+        "/opt/python/*/bin"            # For structure like /opt/python/3.12.12/bin
     )
     
     # First pass: find all python executables
     local python_executables=()
     
-    for pattern in $search_paths; do
+    for pattern in "${search_paths[@]}"; do
         for dir in ${~pattern}(N/); do
             [[ -d "$dir" ]] || continue
             
@@ -67,8 +71,12 @@ _scan_all_pythons() {
             version="${match[1]}"
         fi
         
-        # Method 2: Run the executable to get version
+        # Method 2: Run the executable to get version (with validation)
         if fullver=$("$py" --version 2>&1); then
+            # Validate it's actually Python
+            if [[ ! "$fullver" =~ ^Python ]]; then
+                continue  # Not a Python interpreter
+            fi
             if [[ "$fullver" =~ 'Python ([0-9]+)\.([0-9]+)\.?[0-9]*' ]]; then
                 local extracted_version="${match[1]}.${match[2]}"
                 
@@ -97,20 +105,64 @@ _scan_all_pythons() {
         [[ -z "$version" ]] && continue
         [[ "$version" =~ '^2' ]] && continue
         
-        # Get real path if it's a symlink
+        # Get real path if it's a symlink (macOS-compatible)
         local realpath="$py"
-        [[ -L "$py" ]] && realpath=$(readlink -f "$py" 2>/dev/null || readlink "$py" 2>/dev/null || echo "$py")
+        if [[ -L "$py" ]]; then
+            local count=0
+            while [[ -L "$realpath" ]] && (( count++ < 50 )); do
+                local target=$(readlink "$realpath" 2>/dev/null || echo "$realpath")
+                # Handle relative symlinks
+                [[ "$target" != /* ]] && target="${realpath:h}/$target"
+                realpath="$target"
+            done
+        fi
         
-        # Store, preferring $HOME/.local/bin
-        if [[ -z "${_PYTHON_PATHS[$version]}" ]] || [[ "${py%/*}" == "$HOME/.local/bin" ]]; then
-            _PYTHON_VERSIONS+=("$version")
+        # Determine if we should store this Python
+        local should_store=0
+        
+        if [[ -z "${_PYTHON_PATHS[$version]}" ]]; then
+            # First time seeing this major.minor version
+            should_store=1
+        else
+            # Already have this version, decide which to keep
+            
+            # Preference 1: Always prefer $HOME/.local/bin
+            if [[ "${py%/*}" == "$HOME/.local/bin" ]]; then
+                should_store=1
+            # Preference 2: Compare patch versions - keep the highest
+            elif [[ "$fullver" =~ 'Python ([0-9]+)\.([0-9]+)\.([0-9]+)' ]]; then
+                local new_major="${match[1]}"
+                local new_minor="${match[2]}"
+                local new_patch="${match[3]}"
+                
+                # Extract stored version
+                local stored_info="${_PYTHON_INFO[$version]}"
+                if [[ "$stored_info" =~ 'Python ([0-9]+)\.([0-9]+)\.([0-9]+)' ]]; then
+                    local stored_major="${match[1]}"
+                    local stored_minor="${match[2]}"
+                    local stored_patch="${match[3]}"
+                    
+                    # Compare patch versions numerically
+                    if (( new_patch > stored_patch )); then
+                        should_store=1
+                    fi
+                fi
+            fi
+        fi
+        
+        # Store this Python if we decided to
+        if [[ $should_store -eq 1 ]]; then
+            # Only add to array if this is the first time we see this major.minor
+            if [[ -z "${_PYTHON_PATHS[$version]}" ]]; then
+                _PYTHON_VERSIONS+=("$version")
+            fi
             _PYTHON_PATHS[$version]="$py"
             _PYTHON_INFO[$version]="$fullver ($realpath)"
         fi
     done
     
-    # Sort versions numerically
-    _PYTHON_VERSIONS=(${(nou)_PYTHON_VERSIONS})
+    # Sort versions numerically in ascending order (3.9, 3.10, 3.11...)
+    _PYTHON_VERSIONS=(${(nu)_PYTHON_VERSIONS})
     _PYTHONS_SCANNED=1
 }
 
@@ -248,8 +300,8 @@ python() {
     
     echo ""
     echo "💡 Options:"
-    echo "   1. Create venv: python${sorted_versions[1]} -m venv [venv-projname] && source [venv-projname]/bin/activate"
-    echo "   2. Set temporary default: setpy ${sorted_versions[1]}"
+    echo "   1. Create venv: python${_PYTHON_VERSIONS[-1]} -m venv [venv-projname] && source [venv-projname]/bin/activate"
+    echo "   2. Set temporary default: setpy ${_PYTHON_VERSIONS[-1]}"
     echo "   3. For build tools: setpy <version> && PYTHON_ALLOW_SYSTEM=1 your-build-command"
     
     return 1
@@ -334,8 +386,8 @@ python3() {
     
     echo ""
     echo "💡 Options:"
-    echo "   1. Create venv: python${sorted_versions[1]} -m venv [venv-projname] && source [venv-projname]/bin/activate"
-    echo "   2. Set temporary default: setpy ${sorted_versions[1]}"
+    echo "   1. Create venv: python${_PYTHON_VERSIONS[-1]} -m venv [venv-projname] && source [venv-projname]/bin/activate"
+    echo "   2. Set temporary default: setpy ${_PYTHON_VERSIONS[-1]}"
     echo "   3. For build tools: setpy <version> && PYTHON_ALLOW_SYSTEM=1 your-build-command"
     
     return 1
@@ -395,6 +447,13 @@ setpy() {
             echo "ℹ️  No Python override was set"
         fi
         return 0
+    fi
+    
+    # Strip "python" prefix if provided (accept both "3.12" and "python3.12")
+    if [[ "$version" =~ ^python([0-9]+\.?[0-9]*)$ ]]; then
+        version="${match[1]}"
+    elif [[ "$version" =~ ^py([0-9]+\.?[0-9]*)$ ]]; then
+        version="${match[1]}"
     fi
     
     # Ensure pythons are scanned
@@ -548,11 +607,19 @@ _pip_version_wrapper() {
     return 1
 }
 
-# Create common version functions eagerly
-for ver in 3.9 3.10 3.11 3.12 3.13; do
-    eval "python${ver}() { _python_version_wrapper '${ver}' \"\$@\"; }"
-    eval "py${ver}() { _python_version_wrapper '${ver}' \"\$@\"; }"
-    eval "pip${ver}() { _pip_version_wrapper '${ver}' \"\$@\"; }"
+# Create version functions for a wide range (covers current and future Python versions)
+# Note: The wrapper functions handle non-existent versions gracefully with helpful error messages
+# This range (3.8-3.25) should cover Python releases for many years to come
+for major in 3; do
+    for minor in {8..25}; do
+        local ver="${major}.${minor}"
+        # Validate version format to prevent code injection via eval
+        if [[ "$ver" =~ ^[0-9]+\.[0-9]+$ ]]; then
+            eval "python${ver}() { _python_version_wrapper '${ver}' \"\$@\"; }"
+            eval "py${ver}() { _python_version_wrapper '${ver}' \"\$@\"; }"
+            eval "pip${ver}() { _pip_version_wrapper '${ver}' \"\$@\"; }"
+        fi
+    done
 done
 
 # Enhanced pyinfo function
