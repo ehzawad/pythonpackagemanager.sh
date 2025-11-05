@@ -819,9 +819,33 @@ for major in 3; do
         local ver="${major}.${minor}"
         # Validate version format to prevent code injection via eval
         if [[ "$ver" =~ ^[0-9]+\.[0-9]+$ ]]; then
-            eval "python${ver}() { _python_version_wrapper '${ver}' \"\$@\"; }"
-            eval "py${ver}() { _python_version_wrapper '${ver}' \"\$@\"; }"
-            eval "pip${ver}() { _pip_version_wrapper '${ver}' \"\$@\"; }"
+            eval "
+python${ver}() {
+    if typeset -f _python_version_wrapper >/dev/null 2>&1; then
+        _python_version_wrapper '${ver}' \"\$@\"
+    else
+        command python${ver} \"\$@\"
+    fi
+}
+"
+            eval "
+py${ver}() {
+    if typeset -f _python_version_wrapper >/dev/null 2>&1; then
+        _python_version_wrapper '${ver}' \"\$@\"
+    else
+        command python${ver} \"\$@\"
+    fi
+}
+"
+            eval "
+pip${ver}() {
+    if typeset -f _pip_version_wrapper >/dev/null 2>&1; then
+        _pip_version_wrapper '${ver}' \"\$@\"
+    else
+        command pip${ver} \"\$@\"
+    fi
+}
+"
         fi
     done
 done
