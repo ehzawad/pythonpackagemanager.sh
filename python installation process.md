@@ -56,7 +56,7 @@ GDBM_LIBS="-L$(brew --prefix gdbm)/lib -lgdbm" \
 ### 5 · Compile and install without touching `python3`
 
 ```bash
-make -s -j"$(sysctl -n hw.ncpu)"
+make -j 10
 make altinstall        # installs python3.13 and pip3.13 under $PREFIX/bin
 ```
 
